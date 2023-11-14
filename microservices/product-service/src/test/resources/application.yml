@@ -1,0 +1,3 @@
+server.error.include-messages: always
+
+spring.cloud.stream.defaultBinder: rabbit

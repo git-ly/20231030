@@ -18,7 +18,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.*;
 
-@DataJpaTest(properties = {"spring.cloud.config.enabled=false"})
+@DataJpaTest(properties = {"spring.jpa.hibernate.ddl-auto=update","spring.cloud.config.enabled=false"})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 public class PersistenceTests extends MySqlTestBase{

@@ -21,7 +21,7 @@ spring.cloud.gateway.routes:
   - id: oauth2-login
     uri: lb://auth-server
     predicates:
-      -Path=/login/**
+      - Path=/login/**
 
   - id: oauth2-error
     uri: lb://auth-server

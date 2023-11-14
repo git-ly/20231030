@@ -1,6 +1,5 @@
 package com.example.microservices.composite.product;
 
-import jdk.jfr.Event;
 import org.example.api.composite.product.ProductAggregate;
 import org.example.api.composite.product.RecommendationSummary;
 import org.example.api.composite.product.ReviewSummary;
@@ -38,7 +37,8 @@ import static org.springframework.http.HttpStatus.ACCEPTED;
         properties = {
                 "spring.security.oauth2.resourceserver.jwt.issuer-uri=",
                 "spring.main.allow-bean-definition-overriding=true",
-        "eureka.client.enabled=false",
+                "eureka.client.enabled=false",
+                "spring.cloud.stream.defaultBinder=rabbit",
                 "spring.cloud.config.enabled=false"
         }
 )
