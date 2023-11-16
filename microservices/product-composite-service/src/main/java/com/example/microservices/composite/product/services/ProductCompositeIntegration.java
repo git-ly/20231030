@@ -1,6 +1,10 @@
 package com.example.microservices.composite.product.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import org.example.api.core.product.Product;
 import org.example.api.core.product.ProductService;
 import org.example.api.core.recommendation.Recommendation;
@@ -11,6 +15,7 @@ import org.example.api.event.MicroEvent;
 import org.example.api.exceptions.InvalidInputException;
 import org.example.api.exceptions.NotFoundException;
 import org.example.util.http.HttpErrorInfo;
+import org.example.util.http.ServiceUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,12 +33,14 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -51,17 +58,20 @@ public class ProductCompositeIntegration implements ProductService,
     private final ObjectMapper mapper;
     private final StreamBridge streamBridge;
     private final Scheduler publishEventScheduler;
+    private final ServiceUtil serviceUtil;
     @Autowired
     public ProductCompositeIntegration(
             @Qualifier("publishEventScheduler")Scheduler publishEventScheduler,
             WebClient.Builder webClientBuilder,
             ObjectMapper mapper,
-            StreamBridge streamBridge
+            StreamBridge streamBridge,
+            ServiceUtil serviceUtil
     ){
         this.publishEventScheduler = publishEventScheduler;
         this.webClient = webClientBuilder.build();
         this.mapper =mapper;
         this.streamBridge = streamBridge;
+        this.serviceUtil = serviceUtil;
     }
 
     @Override
@@ -81,15 +91,29 @@ public class ProductCompositeIntegration implements ProductService,
                 .subscribeOn(publishEventScheduler).then();
     }
 
+    @Retry(name = "product")
+    @TimeLimiter(name = "product")
+    @CircuitBreaker(name = "product",fallbackMethod = "getProductFallbackValue")
     @Override
-    public Mono<Product> getProduct(int productId) {
-        String url = PRODUCT_SERVICE_URL + "/product/" + productId;
+    public Mono<Product> getProduct(int productId,int delay,int faultPercent) {
+        URI url = UriComponentsBuilder.fromUriString(PRODUCT_SERVICE_URL + "/product/{product}?delay={delay}" +
+                "&faultPercent={faultPercent}").build(productId,delay,faultPercent);
         LOG.debug("Will call the getProduct API on URL: {}",url);
         return webClient.get().uri(url).retrieve()
                 .bodyToMono(Product.class)
                 .log(LOG.getName(), Level.FINE)
                 .onErrorMap(WebClientResponseException.class,
                         ex -> handleException(ex));
+    }
+    private Mono<Product> getProductFallbackValue(int productId, int delay, int faultPercent, CallNotPermittedException ex){
+        if (productId == 13){
+            String errMsg = "Product Id: " + productId
+                    + " not found in fallback cache!";
+            LOG.warn(errMsg);
+            throw new NotFoundException(errMsg);
+        }
+        return Mono.just(new Product(productId,"Fallback product" +
+                productId,productId,serviceUtil.getServiceAddress()));
     }
     public Mono<Health> getProductHealth(){
         return getHealth(PRODUCT_SERVICE_URL);

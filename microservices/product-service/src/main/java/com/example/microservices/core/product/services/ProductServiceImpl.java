@@ -15,6 +15,8 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+import java.util.Random;
 import java.util.logging.Level;
 
 @RestController
@@ -60,16 +62,39 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Mono<Product> getProduct(int productId) {
+    public Mono<Product> getProduct(int productId,int delay,int faultPercent) {
         if (productId < 1) {
             throw new InvalidInputException("Invalid productId: " + productId);
         }
         LOG.info("Will get product info for id={}", productId);
         return repository.findByProductId(productId)
+                .map(e -> throwErrorIfBadLuck(e,faultPercent))
+                .delayElement(Duration.ofSeconds(delay))
                 .switchIfEmpty(Mono.error(new NotFoundException("No product found for productId: " + productId)))
                 .log(LOG.getName(), Level.FINE)
                 .map(e -> mapper.entityToApi(e))
                 .map(e -> setServiceAddress(e));
+    }
+    private ProductEntity throwErrorIfBadLuck(ProductEntity entity,int faultPercent){
+        if (faultPercent == 0){
+            return entity;
+        }
+        int randomThreshold = getRandomNumber(1,100);
+
+        if (faultPercent < randomThreshold){
+            LOG.debug("We got lucky, no error occurred, {} < {}",faultPercent,randomThreshold);
+        }else{
+            LOG.info("Bad luck, an error occurred, {} >= {}",faultPercent,randomThreshold);
+            throw new RuntimeException("Something went wrong...");
+        }
+        return entity;
+    }
+    private final Random randomNumberGenerator = new Random();
+    private int getRandomNumber(int min,int max){
+        if (max < min){
+            throw new IllegalArgumentException("Max must be greater than min");
+        }
+        return randomNumberGenerator.nextInt((max - min) + 1) + min;
     }
     private Product setServiceAddress(Product e){
         e.setServiceAddress(serviceUtil.getServiceAddress());
