@@ -46,9 +46,16 @@ dependencies {
 	implementation "io.github.resilience4j:resilience4j-spring-boot2:${resilience4jVersion}"
 	implementation "io.github.resilience4j:resilience4j-reactor:${resilience4jVersion}"
 	implementation 'org.springframework.boot:spring-boot-starter-aop'
+	implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
+	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+	implementation 'io.opentelemetry:opentelemetry-exporter-zipkin'
 	testImplementation 'org.springframework.cloud:spring-cloud-stream-test-binder'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'io.projectreactor:reactor-test'
+}
+
+springBoot {
+	buildInfo()
 }
 
 tasks.named('test') {

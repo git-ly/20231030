@@ -95,6 +95,8 @@ spring.cloud.stream:
 
 spring.security.oauth2.resourceserver.jwt.issuer-uri: http://${app.auth-server}:9999
 
+spring.codec.log-request-details: true
+
 resilience4j.timelimiter:
   instances:
     product:
@@ -128,8 +130,9 @@ resilience4j.circuitbreaker:
 logging:
   level:
     root: INFO
-    com.example: DEBUG
-    org.springframework.web.server.adapter.HttpWebHandlerAdapter: TRACE
+    com.example: INFO
+    org.springframework.web.server.adapter.HttpWebHandlerAdapter: INFO
+    org.springframework.web.reactive.function.client.ExchangeFunctions: TRACE
 
 ---
 spring.config.activate.on-profile: docker

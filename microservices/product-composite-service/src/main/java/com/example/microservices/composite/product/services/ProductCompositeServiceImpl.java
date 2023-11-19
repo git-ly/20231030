@@ -1,5 +1,6 @@
 package com.example.microservices.composite.product.services;
 
+import com.example.microservices.composite.product.services.tracing.ObservationUtil;
 import org.example.api.composite.product.*;
 import org.example.api.core.product.Product;
 import org.example.api.core.recommendation.Recommendation;
@@ -19,6 +20,7 @@ import reactor.core.publisher.Mono;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -27,36 +29,74 @@ public class ProductCompositeServiceImpl implements ProductCompositeService {
     private static final Logger LOG = LoggerFactory.getLogger(ProductCompositeServiceImpl.class);
     private final SecurityContext nullSecCtx = new SecurityContextImpl();
     private final ServiceUtil serviceUtil;
+    private final ObservationUtil observationUtil;
     private ProductCompositeIntegration integration;
     @Autowired
     public ProductCompositeServiceImpl(ServiceUtil serviceUtil,
+                                       ObservationUtil observationUtil,
                                        ProductCompositeIntegration integration){
         this.serviceUtil = serviceUtil;
+        this.observationUtil = observationUtil;
         this.integration = integration;
     }
 
     @Override
     public Mono<Void> createProduct(ProductAggregate body) {
+        return observationWithProductInfo(body.getProductId(),() -> createProductInterval(body));
+    }
+
+    @Override
+    public Mono<Void> deleteProduct(int productId) {
+        return observationWithProductInfo(productId,() -> deleteProductInternal(productId));
+    }
+
+    @Override
+    public Mono<ProductAggregate> getProduct(int productId,int delay,int faultPercent) {
+        return observationWithProductInfo(productId,() -> getProductInternal(productId,delay,faultPercent));
+    }
+    private Mono<Void> deleteProductInternal(int productId){
+        try{
+            LOG.info("Will delete a product aggregate for product.id: {}",productId);
+            return Mono.zip(r -> "",
+                    getLogAuthorizationInfoMono(),
+                    integration.deleteProduct(productId),
+                    integration.deleteRecommendations(productId),
+                    integration.deleteReviews(productId))
+                    .doOnError(ex -> LOG.warn("delete failed: {}",ex.toString()))
+                    .log(LOG.getName(),Level.FINE).then();
+        }catch (RuntimeException re){
+            LOG.warn("deleteCompositeProduct failed: {}",re.toString());
+            throw re;
+        }
+    }
+    private Mono<ProductAggregate> getProductInternal(int productId,int delay,int faultPercent){
+        LOG.info("Will get composite product info for product.id={}",productId);
+        return Mono.zip(values -> createProductAggregate(
+                (SecurityContext) values[0],(Product) values[1],(List<Recommendation>) values[2],(List<Review>) values[3],serviceUtil.getServiceAddress()
+        ),
+                getSecurityContextMono(),
+                integration.getProduct(productId,delay,faultPercent),
+                integration.getRecommendations(productId).collectList(),
+                integration.getReviews(productId).collectList())
+                .doOnError(ex -> LOG.warn("getCompositeProduct failed: {}",ex.toString()))
+                .log(LOG.getName(),Level.FINE);
+    }
+    private Mono<Void> createProductInterval(ProductAggregate body){
         try{
             List<Mono> monoList = new ArrayList<>();
             monoList.add(getLogAuthorizationInfoMono());
             LOG.info("Will create a new composite entity for product.id: {}",body.getProductId());
-            Product product = new Product(body.getProductId(),
-                    body.getName(),body.getWeight(),null);
+            Product product = new Product(body.getProductId(),body.getName(),body.getWeight(),null);
             monoList.add(integration.createProduct(product));
             if (body.getRecommendations() != null){
                 body.getRecommendations().forEach(r -> {
-                    Recommendation recommendation = new Recommendation(body.getProductId(),
-                            r.getRecommendationId(),r.getAuthor(),r.getRate(),
-                            r.getContent(),null);
+                    Recommendation recommendation = new Recommendation(body.getProductId(),r.getRecommendationId(),r.getAuthor(),r.getRate(),r.getContent(),null);
                     monoList.add(integration.createRecommendation(recommendation));
                 });
             }
             if (body.getReviews() != null){
                 body.getReviews().forEach(r -> {
-                    Review review = new Review(body.getProductId(),
-                            r.getReviewId(),r.getAuthor(),r.getSubject(),
-                            r.getContent(),null);
+                    Review review = new Review(body.getProductId(),r.getReviewId(),r.getAuthor(),r.getSubject(),r.getContent(),null);
                     monoList.add(integration.createReview(review));
                 });
             }
@@ -69,44 +109,14 @@ public class ProductCompositeServiceImpl implements ProductCompositeService {
             throw re;
         }
     }
-
-    @Override
-    public Mono<Void> deleteProduct(int productId) {
-        try{
-            LOG.info("Will delete a product aggregate for product.id: {}",productId);
-            return Mono.zip(
-                    r -> "",
-                    getLogAuthorizationInfoMono(),
-                    integration.deleteProduct(productId),
-                    integration.deleteRecommendations(productId),
-                    integration.deleteReviews(productId)
-            ).doOnError(ex -> LOG.warn("delete failed: {}",ex.toString()))
-                    .log(LOG.getName(),Level.FINE).then();
-        }catch (RuntimeException re){
-            LOG.warn("deleteCompositeProduct failed: {}",re.toString());
-            throw re;
-        }
-    }
-
-    @Override
-    public Mono<ProductAggregate> getProduct(int productId,int delay,int faultPercent) {
-        LOG.info("Will get composite product info for product.id={}",productId);
-        return Mono.zip(
-                values -> createProductAggregate(
-                        (SecurityContext) values[0],
-                        (Product) values[1],
-                        (List<Recommendation>) values[2],
-                        (List<Review>) values[3],
-                        serviceUtil.getServiceAddress()
-                ),
-                getSecurityContextMono(),
-                integration.getProduct(productId,delay,faultPercent),
-                integration.getRecommendations(productId).collectList(),
-                integration.getReviews(productId).collectList()
-        ).doOnError(ex ->
-                LOG.warn("getCompositeProduct failed: {}",
-                        ex.toString()))
-                .log(LOG.getName(), Level.FINE);
+    private <T> T observationWithProductInfo(int productInfo, Supplier<T> supplier){
+        return observationUtil.observe(
+                "composite observation",
+                "product info",
+                "productId",
+                String.valueOf(productInfo),
+                supplier
+        );
     }
     private ProductAggregate createProductAggregate(
             SecurityContext sc,

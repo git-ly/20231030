@@ -17,6 +17,7 @@ import org.springframework.data.mongodb.core.index.MongoPersistentEntityIndexRes
 import org.springframework.data.mongodb.core.index.ReactiveIndexOperations;
 import org.springframework.data.mongodb.core.mapping.MongoPersistentEntity;
 import org.springframework.data.mongodb.core.mapping.MongoPersistentProperty;
+import reactor.core.publisher.Hooks;
 
 @SpringBootApplication
 @ComponentScan({"org.example","com.example"})
@@ -24,6 +25,7 @@ public class ProductServiceApplication {
 	private static final Logger LOG = LoggerFactory.getLogger(ProductServiceApplication.class);
 
 	public static void main(String[] args) {
+		Hooks.enableAutomaticContextPropagation();
 		ConfigurableApplicationContext ctx =
 		SpringApplication.run(ProductServiceApplication.class, args);
 		String mongodDbHost =

@@ -20,17 +20,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.cloud.stream.function.StreamBridge;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -38,11 +33,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.logging.Level;
 
 import static reactor.core.publisher.Flux.empty;
@@ -62,13 +54,13 @@ public class ProductCompositeIntegration implements ProductService,
     @Autowired
     public ProductCompositeIntegration(
             @Qualifier("publishEventScheduler")Scheduler publishEventScheduler,
-            WebClient.Builder webClientBuilder,
+            WebClient webClient,
             ObjectMapper mapper,
             StreamBridge streamBridge,
             ServiceUtil serviceUtil
     ){
         this.publishEventScheduler = publishEventScheduler;
-        this.webClient = webClientBuilder.build();
+        this.webClient = webClient;
         this.mapper =mapper;
         this.streamBridge = streamBridge;
         this.serviceUtil = serviceUtil;
