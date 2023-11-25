@@ -34,21 +34,19 @@ dependencies {
 	implementation project(":util")
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
-	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.0.2'
-	implementation 'org.springframework.cloud:spring-cloud-starter-stream-rabbit'
-	implementation 'org.springframework.cloud:spring-cloud-starter-stream-kafka'
-	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.security:spring-security-oauth2-resource-server'
 	implementation 'org.springframework.security:spring-security-oauth2-jose'
+	implementation 'org.springframework.cloud:spring-cloud-starter-stream-rabbit'
+	implementation 'org.springframework.cloud:spring-cloud-starter-stream-kafka'
 	implementation 'org.springframework.cloud:spring-cloud-starter-config'
-	implementation 'org.springframework.retry:spring-retry'
-	implementation "io.github.resilience4j:resilience4j-spring-boot2:${resilience4jVersion}"
-	implementation "io.github.resilience4j:resilience4j-reactor:${resilience4jVersion}"
-	implementation 'org.springframework.boot:spring-boot-starter-aop'
-	implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
 	implementation 'io.opentelemetry:opentelemetry-exporter-zipkin'
+	implementation 'org.springframework.retry:spring-retry'
+	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.0.2'
+	implementation "io.github.resilience4j:resilience4j-spring-boot3:${resilience4jVersion}"
+	implementation "io.github.resilience4j:resilience4j-reactor:${resilience4jVersion}"
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
 	testImplementation 'org.springframework.cloud:spring-cloud-stream-test-binder'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'io.projectreactor:reactor-test'

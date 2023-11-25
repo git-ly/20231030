@@ -20,7 +20,7 @@
 //import static reactor.core.publisher.Mono.just;
 //
 //@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-//properties = {"eureka.client.enabled=false","spring.cloud.config.enabled=false"})
+//properties = {"spring.cloud.config.enabled=false"})
 //class RecommendationServiceApplicationTests extends MongoDbTestBase{
 //	@Autowired
 //	private WebTestClient client;

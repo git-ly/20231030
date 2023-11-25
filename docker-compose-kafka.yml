@@ -3,9 +3,12 @@ version: '2.1'
 services:
   product:
     build: microservices/product-service
+    image: hands-on/product-service
     mem_limit: 256m
     environment:
       - SPRING_PROFILES_ACTIVE=docker,streaming_partitioned,streaming_instance_0,kafka
+      - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
+      - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -14,9 +17,12 @@ services:
 
   product-p1:
     build: microservices/product-service
+    image: hands-on/product-service
     mem_limit: 256m
     environment:
       - SPRING_PROFILES_ACTIVE=docker,streaming_partitioned,streaming_instance_1,kafka
+      - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
+      - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -25,9 +31,12 @@ services:
 
   recommendation:
     build: microservices/recommendation-service
+    image: hands-on/recommendation-service
     mem_limit: 256m
     environment:
       - SPRING_PROFILES_ACTIVE=docker,streaming_partitioned,streaming_instance_0,kafka
+      - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
+      - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -36,9 +45,12 @@ services:
 
   recommendation-p1:
     build: microservices/recommendation-service
+    image: hands-on/recommendation-service
     mem_limit: 256m
     environment:
       - SPRING_PROFILES_ACTIVE=docker,streaming_partitioned,streaming_instance_1,kafka
+      - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
+      - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -47,9 +59,12 @@ services:
 
   review:
     build: microservices/review-service
+    image: hands-on/review-service
     mem_limit: 256m
     environment:
       - SPRING_PROFILES_ACTIVE=docker,streaming_partitioned,streaming_instance_0,kafka
+      - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
+      - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
     depends_on:
       mysql:
         condition: service_healthy
@@ -58,9 +73,12 @@ services:
 
   review-p1:
     build: microservices/review-service
+    image: hands-on/review-service
     mem_limit: 256m
     environment:
       - SPRING_PROFILES_ACTIVE=docker,streaming_partitioned,streaming_instance_1,kafka
+      - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
+      - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
     depends_on:
       mysql:
         condition: service_healthy
@@ -69,12 +87,17 @@ services:
 
   product-composite:
     build: microservices/product-composite-service
+    image: hands-on/product-composite-service
     mem_limit: 256m
     environment:
       - SPRING_PROFILES_ACTIVE=docker,streaming_partitioned,kafka
+      - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
+      - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
     depends_on:
       kafka:
         condition: service_started
+      auth-server:
+        condition: service_healthy
 
   mongodb:
     image: mongo:6.0.4
@@ -127,11 +150,8 @@ services:
     environment:
       - ZOOKEEPER_CLIENT_PORT=2181
 
-  eureka:
-    build: spring-cloud/eureka-server
-    mem_limit: 256m
-
   gateway:
+    image: hands-on/gateway
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SERVER_SSL_KEY_STORE=file:/keystore/edge-test.p12
@@ -142,8 +162,12 @@ services:
     mem_limit: 256m
     ports:
       - "8443:8443"
+    depends_on:
+      auth-server:
+        condition: service_healthy
 
   auth-server:
+    image: hands-on/auth-server
     environment:
       - SPRING_PROFILES_ACTIVE=docker
     build: spring-cloud/authorization-server
@@ -156,6 +180,7 @@ services:
 
   config-server:
     build: spring-cloud/config-server
+    image: hands-on/config-server
     mem_limit: 512m
     environment:
       - SPRING_PROFILES_ACTIVE=docker,native
@@ -165,7 +190,7 @@ services:
     volumes:
       - $PWD/config-repo:/config-repo
 
-  zipkin:
+  zipkin-server:
     image: openzipkin/zipkin:2.24.0
     restart: always
     mem_limit: 1024m

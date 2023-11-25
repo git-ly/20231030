@@ -1,6 +1,7 @@
 server.port: 7003
 server.error.include-message: always
 
+# Strongly recommend to set this property to "none" in a production environment!
 spring.jpa.hibernate.ddl-auto: update
 
 spring.datasource:
@@ -34,14 +35,14 @@ spring.cloud.stream.kafka.bindings.messageProcessor-in-0.consumer:
 logging:
   level:
     root: INFO
-    com.example: INFO
+    org.example: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
 ---
 spring.config.activate.on-profile: docker
 
-server.port: 8080
+server.port: 80
 
 spring.datasource.url: jdbc:mysql://mysql/review-db
 
@@ -61,3 +62,15 @@ spring.cloud.stream.bindings.messageProcessor-in-0.consumer.instanceIndex: 0
 spring.config.activate.on-profile: streaming_instance_1
 
 spring.cloud.stream.bindings.messageProcessor-in-0.consumer.instanceIndex: 1
+
+---
+spring.config.activate.on-profile: prod
+
+spring.datasource.url: jdbc:mysql://172.17.0.1:3306/review-db
+
+logging:
+  level:
+    root: WARN
+    se.magnus: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN

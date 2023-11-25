@@ -15,7 +15,6 @@ import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.cloud.client.loadbalancer.reactive.ReactorLoadBalancerExchangeFilterFunction;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Hooks;
 import reactor.core.scheduler.Scheduler;
@@ -71,11 +70,9 @@ public class ProductCompositeServiceApplication {
 		return Schedulers.newBoundedElastic(threadPoolSize,taskQueueSize,"publish-pool");
 	}
 
-	@Autowired
-	private ReactorLoadBalancerExchangeFilterFunction lbFunction;
 	@Bean
 	public WebClient webClient(WebClient.Builder builder){
-		return builder.filter(lbFunction).build();
+		return builder.build();
 	}
 
 	public static void main(String[] args) {

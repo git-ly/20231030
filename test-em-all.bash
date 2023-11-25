@@ -6,11 +6,15 @@
 #
 : ${HOST=localhost}
 : ${PORT=8443}
+: ${USE_K8S=false}
 : ${PROD_ID_REVS_RECS=1}
 : ${PROD_ID_NOT_FOUND=13}
 : ${PROD_ID_NO_RECS=113}
 : ${PROD_ID_NO_REVS=213}
 : ${SKIP_CB_TESTS=false}
+: ${NAMESPACE=hands-on}
+: ${CONFIG_SERVER_USR=dev-usr}
+: ${CONFIG_SERVER_PWD=dev-pwd}
 
 function assertCurl(){
   local expectedHttpCode=$1
@@ -161,7 +165,14 @@ function setupTestdata(){
 function testCircuitBreaker(){
   echo "Start Circuit Breaker tests!"
 
-  assertEqual "CLOSED" "$(docker-compose exec -T product-composite curl -s http://product-composite:8080/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
+  if [[ $USE_K8S == "false" ]]
+  then
+    EXEC="docker-compose exec -T product-composite"
+  else
+    EXEC="kubectl -n $NAMESPACE exec deploy/product-composite -- "
+  fi
+
+  assertEqual "CLOSED" "$($EXEC curl -s http://localhost/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
 
   for ((n=0; n<3; n++))
   do
@@ -170,7 +181,7 @@ function testCircuitBreaker(){
     assertEqual "Did not observe any item or terminal signal within 2000ms" "${message:0:57}"
   done
 
-  assertEqual "OPEN" "$(docker-compose exec -T product-composite curl -s http://product-composite:8080/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
+  assertEqual "OPEN" "$($EXEC curl -s http://localhost/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
 
   assertCurl 200 "curl -k https://$HOST:$PORT/product-composite/$PROD_ID_REVS_RECS?delay=3 $AUTH -s"
   assertEqual "Fallback product$PROD_ID_REVS_RECS" "$(echo "$RESPONSE" | jq -r .name)"
@@ -184,7 +195,7 @@ function testCircuitBreaker(){
   echo "Will sleep for 10 sec waiting for the CB to go Half Open..."
   sleep 10
 
-  assertEqual "HALF_OPEN" "$(docker-compose exec -T product-composite curl -s http://product-composite:8080/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
+  assertEqual "HALF_OPEN" "$($EXEC curl -s http://localhost/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
 
   for ((n=0; n<3; n++))
   do
@@ -192,11 +203,11 @@ function testCircuitBreaker(){
     assertEqual "product 1" "$(echo "$RESPONSE" | jq -r .name)"
   done
 
-  assertEqual "CLOSED" "$(docker-compose exec -T product-composite curl -s http://product-composite:8080/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
+  assertEqual "CLOSED" "$($EXEC curl -s http://localhost/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
 
-  assertEqual "CLOSED_TO_OPEN" "$(docker-compose exec -T product-composite curl -s http://product-composite:8080/actuator/circuitbreakerevents/product/STATE_TRANSITION | jq -r .circuitBreakerEvents[-3].stateTransition)"
-  assertEqual "OPEN_TO_HALF_OPEN" "$(docker-compose exec -T product-composite curl -s http://product-composite:8080/actuator/circuitbreakerevents/product/STATE_TRANSITION | jq -r .circuitBreakerEvents[-2].stateTransition)"
-  assertEqual "HALF_OPEN_TO_CLOSED" "$(docker-compose exec -T product-composite curl -s http://product-composite:8080/actuator/circuitbreakerevents/product/STATE_TRANSITION | jq -r .circuitBreakerEvents[-1].stateTransition)"
+  assertEqual "CLOSED_TO_OPEN" "$($EXEC curl -s http://localhost/actuator/circuitbreakerevents/product/STATE_TRANSITION | jq -r .circuitBreakerEvents[-3].stateTransition)"
+  assertEqual "OPEN_TO_HALF_OPEN" "$($EXEC curl -s http://localhost/actuator/circuitbreakerevents/product/STATE_TRANSITION | jq -r .circuitBreakerEvents[-2].stateTransition)"
+  assertEqual "HALF_OPEN_TO_CLOSED" "$($EXEC curl -s http://localhost/actuator/circuitbreakerevents/product/STATE_TRANSITION | jq -r .circuitBreakerEvents[-1].stateTransition)"
 }
 
 set -e
@@ -222,13 +233,10 @@ ACCESS_TOKEN=$(curl -k https://writer:secret-writer@$HOST:$PORT/oauth2/token -d 
 echo ACCESS_TOKEN=$ACCESS_TOKEN
 AUTH="-H \"Authorization: Bearer $ACCESS_TOKEN\""
 
-assertCurl 200 "curl -H "accept:application/json" -k https://u:p@$HOST:$PORT/eureka/api/apps -s"
-assertEqual 6 $(echo $RESPONSE | jq ".applications.application | length")
-
-assertCurl 200 "curl -H "accept:application/json" -k https://dev-usr:dev-pwd@$HOST:$PORT/config/product/docker -s"
+assertCurl 200 "curl -H "accept:application/json" -k https://$CONFIG_SERVER_USR:$CONFIG_SERVER_PWD@$HOST:$PORT/config/product/docker -s"
 TEST_VALUE="hello world"
-ENCRYPTED_VALUE=$(curl -k https://dev-usr:dev-pwd@$HOST:$PORT/config/encrypt --data-urlencode "$TEST_VALUE" -s)
-DECRYPTED_VALUE=$(curl -k https://dev-usr:dev-pwd@$HOST:$PORT/config/decrypt -d $ENCRYPTED_VALUE -s)
+ENCRYPTED_VALUE=$(curl -k https://$CONFIG_SERVER_USR:$CONFIG_SERVER_PWD@$HOST:$PORT/config/encrypt --data-urlencode "$TEST_VALUE" -s)
+DECRYPTED_VALUE=$(curl -k https://$CONFIG_SERVER_USR:$CONFIG_SERVER_PWD@$HOST:$PORT/config/decrypt -d $ENCRYPTED_VALUE -s)
 assertEqual "$TEST_VALUE" "$DECRYPTED_VALUE"
 
 setupTestdata

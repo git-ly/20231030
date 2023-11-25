@@ -88,7 +88,7 @@ public class ProductCompositeIntegration implements ProductService,
     @CircuitBreaker(name = "product",fallbackMethod = "getProductFallbackValue")
     @Override
     public Mono<Product> getProduct(int productId,int delay,int faultPercent) {
-        URI url = UriComponentsBuilder.fromUriString(PRODUCT_SERVICE_URL + "/product/{product}?delay={delay}" +
+        URI url = UriComponentsBuilder.fromUriString(PRODUCT_SERVICE_URL + "/product/{productId}?delay={delay}" +
                 "&faultPercent={faultPercent}").build(productId,delay,faultPercent);
         LOG.debug("Will call the getProduct API on URL: {}",url);
         return webClient.get().uri(url).retrieve()
