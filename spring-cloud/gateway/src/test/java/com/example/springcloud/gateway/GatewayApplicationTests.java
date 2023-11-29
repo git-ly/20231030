@@ -8,7 +8,6 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 properties = {
-		"spring.cloud.config.enabled=false"
 })
 class GatewayApplicationTests {
 	@Value("${app.eureka-username")

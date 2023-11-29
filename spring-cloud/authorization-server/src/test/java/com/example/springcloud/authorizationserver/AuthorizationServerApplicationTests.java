@@ -11,7 +11,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import java.util.Base64;
 
-@SpringBootTest(properties = {"spring.cloud.config.enabled=false"})
+@SpringBootTest(properties = {})
 @AutoConfigureMockMvc
 class AuthorizationServerApplicationTests {
 	@Autowired

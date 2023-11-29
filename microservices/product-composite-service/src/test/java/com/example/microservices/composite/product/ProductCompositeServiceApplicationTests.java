@@ -31,8 +31,7 @@ import static org.springframework.http.HttpStatus.*;
 classes = {TestSecurityConfig.class},
 properties = {
 		"spring.security.oauth2.resourceserver.jwt.issuer-uri=",
-		"spring.main.allow-bean-definition-overriding=true",
-		"spring.cloud.config.enabled=false"
+		"spring.main.allow-bean-definition-overriding=true"
 })
 class ProductCompositeServiceApplicationTests {
 	private static final int PRODUCT_ID_OK = 1;

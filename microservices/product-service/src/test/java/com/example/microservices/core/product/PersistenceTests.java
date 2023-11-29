@@ -21,7 +21,7 @@ import static java.util.stream.IntStream.rangeClosed;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.data.domain.Sort.Direction.ASC;
 
-@DataMongoTest(properties = "spring.cloud.config.enabled=false")
+@DataMongoTest()
 class PersistenceTests extends MongoDbTestBase{
     @Autowired
     private ProductRepository repository;

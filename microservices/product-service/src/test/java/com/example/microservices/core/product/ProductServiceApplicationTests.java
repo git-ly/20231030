@@ -21,7 +21,7 @@ import static org.example.api.event.MicroEvent.Type.DELETE;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-properties = {"spring.cloud.config.enabled=false"})
+properties = {})
 class ProductServiceApplicationTests extends MongoDbTestBase {
 	@Autowired private WebTestClient client;
 	@Autowired private ProductRepository repository;
