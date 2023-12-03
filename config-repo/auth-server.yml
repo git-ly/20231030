@@ -2,6 +2,8 @@ server.port: 9999
 spring.application.name: auth-server
 server.forward-headers-strategy: framework
 
+management.endpoint.health.group.readiness.include:
+
 logging:
   level:
     root: INFO

@@ -5,6 +5,7 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
+import org.apache.http.client.methods.HttpHead;
 import org.example.api.core.product.Product;
 import org.example.api.core.product.ProductService;
 import org.example.api.core.recommendation.Recommendation;
@@ -22,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
@@ -87,17 +89,24 @@ public class ProductCompositeIntegration implements ProductService,
     @TimeLimiter(name = "product")
     @CircuitBreaker(name = "product",fallbackMethod = "getProductFallbackValue")
     @Override
-    public Mono<Product> getProduct(int productId,int delay,int faultPercent) {
+    public Mono<Product> getProduct(HttpHeaders headers,int productId, int delay, int faultPercent) {
         URI url = UriComponentsBuilder.fromUriString(PRODUCT_SERVICE_URL + "/product/{productId}?delay={delay}" +
                 "&faultPercent={faultPercent}").build(productId,delay,faultPercent);
         LOG.debug("Will call the getProduct API on URL: {}",url);
-        return webClient.get().uri(url).retrieve()
+        return webClient.get().uri(url)
+                .headers(h -> h.addAll(headers))
+                .retrieve()
                 .bodyToMono(Product.class)
                 .log(LOG.getName(), Level.FINE)
                 .onErrorMap(WebClientResponseException.class,
                         ex -> handleException(ex));
     }
-    private Mono<Product> getProductFallbackValue(int productId, int delay, int faultPercent, CallNotPermittedException ex){
+    private Mono<Product> getProductFallbackValue(HttpHeaders headers,int productId, int delay, int faultPercent, CallNotPermittedException ex){
+        LOG.warn("Creating a fail-fast fallback product for productId = {}, delay = {}, faultPercent = {} and exception = {} ",
+                productId,delay,faultPercent,ex.toString());
+        if (productId < 1){
+            throw new InvalidInputException("Invalid productId: " + productId);
+        }
         if (productId == 13){
             String errMsg = "Product Id: " + productId
                     + " not found in fallback cache!";
@@ -106,24 +115,6 @@ public class ProductCompositeIntegration implements ProductService,
         }
         return Mono.just(new Product(productId,"Fallback product" +
                 productId,productId,serviceUtil.getServiceAddress()));
-    }
-    public Mono<Health> getProductHealth(){
-        return getHealth(PRODUCT_SERVICE_URL);
-    }
-    public Mono<Health> getRecommendationHealth(){
-        return getHealth(RECOMMENDATION_SERVICE_URL);
-    }
-    public Mono<Health> getReviewHealth(){
-        return getHealth(REVIEW_SERVICE_URL);
-    }
-    private Mono<Health> getHealth(String url){
-        url += "/actuator/health";
-        LOG.debug("Will call the Health API on URL: {}",url);
-        return webClient.get().uri(url).retrieve().bodyToMono(String.class)
-                .map(s -> new Health.Builder().up().build())
-                .onErrorResume(ex -> Mono.just(new Health.Builder()
-                        .down(ex).build()))
-                .log(LOG.getName(),Level.FINE);
     }
     private String getErrorMessage(WebClientResponseException ex){
         try{
@@ -151,10 +142,13 @@ public class ProductCompositeIntegration implements ProductService,
     }
 
     @Override
-    public Flux<Recommendation> getRecommendations(int productId) {
-        String url = RECOMMENDATION_SERVICE_URL + "/recommendation?productId=" + productId;
+    public Flux<Recommendation> getRecommendations(HttpHeaders headers,int productId) {
+        URI url = UriComponentsBuilder.fromUriString(RECOMMENDATION_SERVICE_URL + "/recommendation?productId={productId}")
+                        .build(productId);
         LOG.debug("Will call the getRecommendations API on URL: {}",url);
-        return webClient.get().uri(url).retrieve()
+        return webClient.get().uri(url)
+                .headers(h -> h.addAll(headers))
+                .retrieve()
                 .bodyToFlux(Recommendation.class)
                 .log(LOG.getName(),Level.FINE)
                 .onErrorResume(error -> empty());
@@ -177,10 +171,12 @@ public class ProductCompositeIntegration implements ProductService,
     }
 
     @Override
-    public Flux<Review> getReviews(int productId) {
-        String url = REVIEW_SERVICE_URL + "/review?productId=" + productId;
+    public Flux<Review> getReviews(HttpHeaders headers,int productId) {
+        URI url = UriComponentsBuilder.fromUriString(REVIEW_SERVICE_URL + "/review?productId={productId}").build(productId);
         LOG.debug("Will call the getReviews API on URL: {}",url);
-        return webClient.get().uri(url).retrieve().bodyToFlux(Review.class)
+        return webClient.get().uri(url)
+                .headers(h -> h.addAll(headers))
+                .retrieve().bodyToFlux(Review.class)
                 .log(LOG.getName(),Level.FINE)
                 .onErrorResume(error -> empty());
     }

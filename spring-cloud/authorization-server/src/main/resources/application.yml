@@ -1,5 +1,0 @@
-spring:
-  application.name: auth-server
-
----
-spring.config.activate.on-profile: docker

@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -72,7 +73,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public Flux<Review> getReviews(int productId) {
+    public Flux<Review> getReviews(HttpHeaders headers, int productId) {
         if (productId < 1){
             throw new InvalidInputException("Invalid productId: " + productId);
         }

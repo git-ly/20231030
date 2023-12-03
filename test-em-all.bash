@@ -4,17 +4,17 @@
 #
 #   HOST=localhost PORT=7000 ./test-em-all.bash
 #
-: ${HOST=localhost}
-: ${PORT=8443}
-: ${USE_K8S=false}
+: ${HOST=minikube.me}
+: ${PORT=443}
+: ${USE_K8S=true}
+: ${HEALTH_URL=https://health.minikube.me}
+: ${MGM_PORT=4004}
 : ${PROD_ID_REVS_RECS=1}
 : ${PROD_ID_NOT_FOUND=13}
 : ${PROD_ID_NO_RECS=113}
 : ${PROD_ID_NO_REVS=213}
 : ${SKIP_CB_TESTS=false}
 : ${NAMESPACE=hands-on}
-: ${CONFIG_SERVER_USR=dev-usr}
-: ${CONFIG_SERVER_PWD=dev-pwd}
 
 function assertCurl(){
   local expectedHttpCode=$1
@@ -169,10 +169,10 @@ function testCircuitBreaker(){
   then
     EXEC="docker-compose exec -T product-composite"
   else
-    EXEC="kubectl -n $NAMESPACE exec deploy/product-composite -- "
+    EXEC="kubectl -n $NAMESPACE exec deploy/product-composite -c product-composite -- "
   fi
 
-  assertEqual "CLOSED" "$($EXEC curl -s http://localhost/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
+  assertEqual "CLOSED" "$($EXEC curl -s http://localhost:${MGM_PORT}/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
 
   for ((n=0; n<3; n++))
   do
@@ -181,7 +181,7 @@ function testCircuitBreaker(){
     assertEqual "Did not observe any item or terminal signal within 2000ms" "${message:0:57}"
   done
 
-  assertEqual "OPEN" "$($EXEC curl -s http://localhost/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
+  assertEqual "OPEN" "$($EXEC curl -s http://localhost:${MGM_PORT}/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
 
   assertCurl 200 "curl -k https://$HOST:$PORT/product-composite/$PROD_ID_REVS_RECS?delay=3 $AUTH -s"
   assertEqual "Fallback product$PROD_ID_REVS_RECS" "$(echo "$RESPONSE" | jq -r .name)"
@@ -195,7 +195,7 @@ function testCircuitBreaker(){
   echo "Will sleep for 10 sec waiting for the CB to go Half Open..."
   sleep 10
 
-  assertEqual "HALF_OPEN" "$($EXEC curl -s http://localhost/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
+  assertEqual "HALF_OPEN" "$($EXEC curl -s http://localhost:${MGM_PORT}/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
 
   for ((n=0; n<3; n++))
   do
@@ -203,11 +203,11 @@ function testCircuitBreaker(){
     assertEqual "product 1" "$(echo "$RESPONSE" | jq -r .name)"
   done
 
-  assertEqual "CLOSED" "$($EXEC curl -s http://localhost/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
+  assertEqual "CLOSED" "$($EXEC curl -s http://localhost:${MGM_PORT}/actuator/health | jq -r .components.circuitBreakers.details.product.details.state)"
 
-  assertEqual "CLOSED_TO_OPEN" "$($EXEC curl -s http://localhost/actuator/circuitbreakerevents/product/STATE_TRANSITION | jq -r .circuitBreakerEvents[-3].stateTransition)"
-  assertEqual "OPEN_TO_HALF_OPEN" "$($EXEC curl -s http://localhost/actuator/circuitbreakerevents/product/STATE_TRANSITION | jq -r .circuitBreakerEvents[-2].stateTransition)"
-  assertEqual "HALF_OPEN_TO_CLOSED" "$($EXEC curl -s http://localhost/actuator/circuitbreakerevents/product/STATE_TRANSITION | jq -r .circuitBreakerEvents[-1].stateTransition)"
+  assertEqual "CLOSED_TO_OPEN" "$($EXEC curl -s http://localhost:${MGM_PORT}/actuator/circuitbreakerevents/product/STATE_TRANSITION | jq -r .circuitBreakerEvents[-3].stateTransition)"
+  assertEqual "OPEN_TO_HALF_OPEN" "$($EXEC curl -s http://localhost:${MGM_PORT}/actuator/circuitbreakerevents/product/STATE_TRANSITION | jq -r .circuitBreakerEvents[-2].stateTransition)"
+  assertEqual "HALF_OPEN_TO_CLOSED" "$($EXEC curl -s http://localhost:${MGM_PORT}/actuator/circuitbreakerevents/product/STATE_TRANSITION | jq -r .circuitBreakerEvents[-1].stateTransition)"
 }
 
 set -e
@@ -216,6 +216,9 @@ echo "Start Tests:" `date`
 
 echo "HOST=${HOST}"
 echo "PORT=${PORT}"
+echo "USE_K8S=${USE_K8S}"
+echo "HEALTH_URL=${HEALTH_URL}"
+echo "MGM_PORT=${MGM_PORT}"
 echo "SKIP_CB_TESTS=${SKIP_CB_TESTS}"
 
 if [[ $@ == *"start"* ]]
@@ -227,7 +230,7 @@ then
   docker-compose up -d
 fi
 
-waitForService curl https://$HOST:$PORT/actuator/health
+waitForService curl -k $HEALTH_URL/actuator/health
 
 ACCESS_TOKEN=$(curl -k https://writer:secret-writer@$HOST:$PORT/oauth2/token -d grant_type=client_credentials -d scope="product:read product:write" -s | jq .access_token -r)
 echo ACCESS_TOKEN=$ACCESS_TOKEN

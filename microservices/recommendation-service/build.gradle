@@ -36,8 +36,8 @@ dependencies {
 	implementation "org.mapstruct:mapstruct:${mapstructVersion}"
 	compileOnly "org.mapstruct:mapstruct-processor:${mapstructVersion}"
 	annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
-	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
-	implementation 'io.opentelemetry:opentelemetry-exporter-zipkin'
+	implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+	implementation 'io.zipkin.reporter2:zipkin-reporter-brave'
 	testAnnotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'io.projectreactor:reactor-test'

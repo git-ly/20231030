@@ -1,6 +1,7 @@
 package com.example.microservices.composite.product.services;
 
 import com.example.microservices.composite.product.services.tracing.ObservationUtil;
+import org.apache.http.client.methods.HttpHead;
 import org.example.api.composite.product.*;
 import org.example.api.core.product.Product;
 import org.example.api.core.recommendation.Recommendation;
@@ -9,6 +10,7 @@ import org.example.util.http.ServiceUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextImpl;
@@ -51,8 +53,8 @@ public class ProductCompositeServiceImpl implements ProductCompositeService {
     }
 
     @Override
-    public Mono<ProductAggregate> getProduct(int productId,int delay,int faultPercent) {
-        return observationWithProductInfo(productId,() -> getProductInternal(productId,delay,faultPercent));
+    public Mono<ProductAggregate> getProduct(HttpHeaders requestHeaders,int productId,int delay,int faultPercent) {
+        return observationWithProductInfo(productId,() -> getProductInternal(requestHeaders,productId,delay,faultPercent));
     }
     private Mono<Void> deleteProductInternal(int productId){
         try{
@@ -69,17 +71,31 @@ public class ProductCompositeServiceImpl implements ProductCompositeService {
             throw re;
         }
     }
-    private Mono<ProductAggregate> getProductInternal(int productId,int delay,int faultPercent){
+    private Mono<ProductAggregate> getProductInternal(HttpHeaders requestHeaders,int productId,int delay,int faultPercent){
         LOG.info("Will get composite product info for product.id={}",productId);
+        HttpHeaders headers = getHeaders(requestHeaders,"X-group");
         return Mono.zip(values -> createProductAggregate(
                 (SecurityContext) values[0],(Product) values[1],(List<Recommendation>) values[2],(List<Review>) values[3],serviceUtil.getServiceAddress()
         ),
                 getSecurityContextMono(),
-                integration.getProduct(productId,delay,faultPercent),
-                integration.getRecommendations(productId).collectList(),
-                integration.getReviews(productId).collectList())
+                integration.getProduct(headers,productId,delay,faultPercent),
+                integration.getRecommendations(headers,productId).collectList(),
+                integration.getReviews(headers,productId).collectList())
                 .doOnError(ex -> LOG.warn("getCompositeProduct failed: {}",ex.toString()))
                 .log(LOG.getName(),Level.FINE);
+    }
+
+    private HttpHeaders getHeaders(HttpHeaders requestHeaders,String... headers){
+        LOG.trace("Will look for {} headers: {}",headers.length,headers);
+        HttpHeaders h = new HttpHeaders();
+        for (String header : headers){
+            List<String> value = requestHeaders.get(header);
+            if (value != null){
+                h.addAll(header,value);
+            }
+        }
+        LOG.trace("Will transfer {}, headers: {}",h.size(),h);
+        return h;
     }
     private Mono<Void> createProductInterval(ProductAggregate body){
         try{

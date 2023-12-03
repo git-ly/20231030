@@ -1,13 +1,13 @@
 {{- define "common.service" -}}
-{{- $common := dict "Values" .Values.common -}}
-{{- $noCommon := omit .Values "common" -}}
-{{- $overrides := dict "Values" $noCommon -}}
-{{- $noValues := omit . "Values" -}}
+{{- $common := dict "Values" .Values.common -}} 
+{{- $noCommon := omit .Values "common" -}} 
+{{- $overrides := dict "Values" $noCommon -}} 
+{{- $noValues := omit . "Values" -}} 
 {{- with merge $noValues $overrides $common -}}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "common.fullname" . }}
+  name: {{ include "common.name" . }}
   labels:
     app.kubernetes.io/name: {{ include "common.name" . }}
     helm.sh/chart: {{ include "common.chart" . }}
@@ -15,7 +15,7 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
-{{ toYaml .Values.service.ports | indent 4}}
+{{ toYaml .Values.service.ports | indent 4 }}
   selector:
     app.kubernetes.io/name: {{ include "common.name" . }}
 {{- end -}}
